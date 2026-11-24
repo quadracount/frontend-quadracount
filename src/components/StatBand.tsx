@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 
-/** Franja de tarjetas con las cifras principales de una pantalla. */
 export function StatBand({ children }: { children: ReactNode }) {
   return <div className="qc-stat-band">{children}</div>;
 }

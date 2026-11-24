@@ -7,13 +7,11 @@ import { GroupPage } from "./pages/GroupPage";
 import { HomePage } from "./pages/HomePage";
 import { NewExpensePage } from "./pages/NewExpensePage";
 
-/** Las rutas de la app son privadas: sin sesión, redirigen a iniciar sesión. */
 function RequireAuth() {
   const { currentUser } = useApp();
   return currentUser ? <Outlet /> : <Navigate to="/login" replace />;
 }
 
-/** Con sesión iniciada, las pantallas de acceso llevan de vuelta a Inicio. */
 function RedirectIfAuth() {
   const { currentUser } = useApp();
   return currentUser ? <Navigate to="/" replace /> : <Outlet />;

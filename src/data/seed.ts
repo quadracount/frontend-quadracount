@@ -1,20 +1,8 @@
-/**
- * Datos de ejemplo de CLAUDE.md (seccion 1), los mismos que usara el seed
- * del backend. Sirven para desarrollar las pantallas antes de que exista el
- * BFF y como caso de prueba a ojo: los saldos del grupo "Depto Los Carrera
- * 1450" tienen que dar Martín +12.000, Camila +1.000, Sofía -5.000 y
- * Diego -8.000.
- */
-
 import type { ActivityEntry, ExpenseSource, Member, Share, User } from "../lib/types";
 import type { Payment } from "../lib/split";
 
-/**
- * Fecha fija de la demo. Los mockups estan dibujados como si hoy fuera el
- * 11 de noviembre, asi que las etiquetas relativas ("ayer", "4 d") se
- * calculan contra esta fecha y no contra el reloj real. Al conectar el
- * backend, basta reemplazarla por `new Date()`.
- */
+// Fecha fija para que "ayer", "4 d", etc. calcen con los mockups.
+// Con el backend real se usa new Date().
 export const DEMO_NOW = new Date("2026-11-11T11:00:00");
 
 export const DEMO_PASSWORD = "quadra123";
@@ -28,7 +16,6 @@ export const seedUsers: User[] = [
   { id: "u-tomas", name: "Tomás", email: "tomas@quadracount.dev" },
 ];
 
-/** El usuario con el que arranca la demo. */
 export const DEMO_USER_ID = "u-martin";
 
 const member = (userId: string): Member => {
@@ -42,10 +29,6 @@ const share = (userId: string, amount: number): Share => ({
   amount,
 });
 
-/**
- * Gasto tal como lo guarda groups-service. `StoredExpense` no incluye los
- * saldos: esos los calcula balances-service a partir de estos datos.
- */
 export interface StoredExpense {
   id: string;
   groupId: string;
@@ -170,10 +153,6 @@ export const seedPayments: Payment[] = [
   },
 ];
 
-/**
- * Entradas de actividad como las escribe activity-service: texto ya legible,
- * no eventos crudos.
- */
 export const seedActivity: ActivityEntry[] = [
   {
     id: "a-pago-diego",

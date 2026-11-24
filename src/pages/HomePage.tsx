@@ -13,7 +13,6 @@ function lastActivityAt(group: Group): string | null {
   return group.activity[0]?.createdAt ?? null;
 }
 
-/** Grupo que más aporta al total, para la línea de ayuda de la tarjeta. */
 function biggestContributor(groups: Group[], sign: 1 | -1): Group | null {
   const candidates = groups.filter((group) =>
     sign === 1 ? group.myBalance > 0 : group.myBalance < 0,

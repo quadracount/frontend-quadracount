@@ -1,19 +1,3 @@
-/**
- * Reglas de negocio de division, saldos y plan para saldar
- * (CLAUDE.md, seccion 1).
- *
- * La fuente de verdad de estas reglas es el backend: groups-service valida
- * la division y balances-service calcula los saldos y el plan. Aqui se
- * replican solo para lo que la interfaz necesita resolver sola:
- *
- *  - la vista previa de la division en la pestana "Formulario",
- *  - la aritmetica del borrador mientras el mcp-server no existe,
- *  - recalcular los datos simulados al registrar un gasto o un pago.
- *
- * Cuando el backend este en pie, los saldos vienen de balances-service y
- * estas funciones quedan solo para las vistas previas del formulario.
- */
-
 import type { Expense, Member, MemberBalance, Share, Transfer } from "./types";
 
 export interface Payment {
@@ -25,11 +9,7 @@ export interface Payment {
   createdAt: string;
 }
 
-/**
- * Division en partes iguales. Si no es exacta, el resto se reparte de a $1
- * entre los participantes, en el orden de la lista de miembros, de modo que
- * la suma de las partes sea siempre igual al total.
- */
+// Si no es exacta, el resto se reparte de a $1 en el orden de los miembros.
 export function splitEqually(amount: number, participants: Member[]): Share[] {
   if (participants.length === 0) return [];
 
@@ -47,14 +27,6 @@ export function splitEqually(amount: number, participants: Member[]): Share[] {
   });
 }
 
-/**
- * Division con ajustes: algunos miembros pagan una cantidad fija menos (o
- * mas) que el resto, y la diferencia se reparte entre todos. Es la regla que
- * necesita el ejemplo "Diego pone 5 lucas menos".
- *
- * El ajuste se descuenta de quien lo recibe y el total ajustado se divide en
- * partes iguales, igual que lo hace la tool `validate_split_consistency`.
- */
 export function splitWithAdjustments(
   amount: number,
   participants: Member[],
@@ -68,8 +40,6 @@ export function splitWithAdjustments(
     0,
   );
 
-  // (total - ajustes) / n es la parte "del resto"; quien tiene ajuste paga esa
-  // parte mas su ajuste (negativo para quien paga menos).
   const evenShares = splitEqually(total - adjustmentTotal, participants);
 
   return evenShares.map((share) => ({
@@ -78,7 +48,6 @@ export function splitWithAdjustments(
   }));
 }
 
-/** La suma de las partes tiene que ser igual al total. */
 export function sharesMatchTotal(amount: number, shares: Share[]): boolean {
   return shares.reduce((sum, share) => sum + share.amount, 0) === Math.trunc(amount);
 }
@@ -87,11 +56,6 @@ export function sumShares(shares: Share[]): number {
   return shares.reduce((sum, share) => sum + share.amount, 0);
 }
 
-/**
- * Saldo neto de cada miembro:
- *   lo que pago - lo que le corresponde pagar + pagos enviados - pagos recibidos.
- * La suma de los saldos de un grupo siempre es 0.
- */
 export function computeBalances(
   members: Member[],
   expenses: Expense[],
@@ -121,11 +85,6 @@ export function computeBalances(
   }));
 }
 
-/**
- * Plan para saldar cuentas: emparejar repetidamente al que mas debe con al
- * que mas le deben, transfiriendo el menor de los dos montos, hasta que
- * todos queden en 0.
- */
 export function computeSettlementPlan(balances: MemberBalance[]): Transfer[] {
   const debtors = balances
     .filter((entry) => entry.net < 0)
@@ -155,12 +114,6 @@ export function computeSettlementPlan(balances: MemberBalance[]): Transfer[] {
   return transfers;
 }
 
-/**
- * Describe en una frase por que un gasto no se dividio en partes iguales,
- * por ejemplo "Diego paga $5.000 menos". Se deduce de las partes guardadas,
- * porque el tipo `Expense` del schema no guarda la explicacion del asistente.
- * Devuelve null si la division fue pareja.
- */
 export function describeUnevenShares(expense: Expense): string | null {
   if (expense.shares.length < 2) return null;
 
@@ -170,7 +123,6 @@ export function describeUnevenShares(expense: Expense): string | null {
   }
   if (counts.size === 1) return null;
 
-  // La parte "del resto" es la mas repetida; con empate, la mayor.
   let reference = expense.shares[0].amount;
   let bestCount = 0;
   for (const [amount, count] of counts) {

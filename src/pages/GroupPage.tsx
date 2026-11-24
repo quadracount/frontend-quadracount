@@ -26,7 +26,6 @@ export function GroupPage() {
 
   const group = getGroup(groupId);
 
-  // Atajo "N" para registrar un gasto, como indica el badge del botón.
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
@@ -78,7 +77,6 @@ export function GroupPage() {
       ? group.expenses.filter((expense) => expense.paidBy.userId === currentUser.id)
       : group.expenses;
 
-  /** Cuántas personas le deben al usuario según el plan para saldar. */
   const peopleOwingMe = group.settlementPlan.filter(
     (transfer) => transfer.to.userId === currentUser.id,
   ).length;

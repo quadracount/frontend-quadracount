@@ -1,9 +1,5 @@
 import { balanceTone, formatAmount, formatSigned } from "../lib/money";
 
-/**
- * Monto en Geist Mono. Con `signed`, lleva siempre el signo y el color del
- * saldo; sin `signed`, es un total neutro como el de un gasto.
- */
 export function Amount({
   value,
   signed = false,

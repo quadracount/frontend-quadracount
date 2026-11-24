@@ -1,10 +1,5 @@
 import type { Member } from "../lib/types";
 
-/**
- * Paleta de avatares, en la línea del marfil y el verde del resto de la
- * interfaz. El color se elige de forma determinista a partir del id, así la
- * misma persona siempre se ve igual.
- */
 const PALETTE = [
   { background: "#cfe5df", color: "#12332f" },
   { background: "#f6e2bd", color: "#6b4b14" },

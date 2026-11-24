@@ -1,11 +1,6 @@
 import { balanceTone, formatSignedCompact } from "../lib/money";
 import type { MemberBalance } from "../lib/types";
 
-/**
- * Balances como barras divergentes: a la izquierda del eje quien debe, a la
- * derecha quien tiene a favor (CLAUDE.md, sección 7). El monto va siempre con
- * signo para no depender solo del color.
- */
 export function BalanceBars({
   balances,
   currentUserId,

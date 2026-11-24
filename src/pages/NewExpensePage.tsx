@@ -12,7 +12,6 @@ import type { ExpenseDraft, ExpenseSource, Member, Share } from "../lib/types";
 type Tab = "TEXT" | "FORM";
 type SplitMode = "EQUAL" | "CUSTOM";
 
-/** La parte "del resto": la más repetida, para describir los ajustes. */
 function referenceShare(shares: Share[]): number {
   const counts = new Map<number, number>();
   for (const share of shares) {
@@ -42,7 +41,6 @@ export function NewExpensePage() {
   const [draft, setDraft] = useState<ExpenseDraft | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Pestaña "Formulario"
   const [description, setDescription] = useState("");
   const [amountText, setAmountText] = useState("");
   const [formPayer, setFormPayer] = useState(currentUser?.id ?? "");
@@ -102,7 +100,6 @@ export function NewExpensePage() {
     else setError(result.message);
   };
 
-  /** "Ajustar a mano": pasa el borrador al formulario sin guardarlo. */
   const adjustByHand = () => {
     if (!draft) return;
     setDescription(draft.description);

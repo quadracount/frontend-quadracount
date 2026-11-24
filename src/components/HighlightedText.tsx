@@ -6,10 +6,6 @@ interface Piece {
   index: number | null;
 }
 
-/**
- * Parte el texto original en trozos, marcando las frases que el asistente
- * interpretó y numerándolas para que coincidan con la lista de abajo.
- */
 function splitByPhrases(text: string, interpretations: Interpretation[]): Piece[] {
   const matches = interpretations
     .map((interpretation, position) => ({
@@ -24,7 +20,6 @@ function splitByPhrases(text: string, interpretations: Interpretation[]): Piece[
   let cursor = 0;
 
   for (const match of matches) {
-    // Si dos frases se solapan, se conserva la primera.
     if (match.start < cursor) continue;
     if (match.start > cursor) {
       pieces.push({ text: text.slice(cursor, match.start), index: null });

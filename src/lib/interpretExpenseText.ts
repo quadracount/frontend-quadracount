@@ -1,17 +1,3 @@
-/**
- * Interprete local de gastos escritos en texto libre.
- *
- * PROVISIONAL. En la arquitectura definitiva esto no vive en el frontend:
- * la pantalla llama a `parseExpenseText` (GraphQL) -> BFF -> mcp-server
- * (CLAUDE.md, secciones 3 y 6.6), y es el orquestador del mcp-server el que
- * decide que tools usar. Mientras ese servicio no exista, esta funcion imita
- * el modo `LLM_MODE=fallback`: reglas deterministas que resuelven los textos
- * de la demo, con la misma forma de salida (`ExpenseDraft`) que tendra la
- * respuesta real, para que la pantalla no cambie cuando se conecte.
- *
- * Igual que en el mcp-server, toda la aritmetica es codigo determinista.
- */
-
 import { splitWithAdjustments, sharesMatchTotal } from "./split";
 import type { ExpenseDraft, Interpretation, Member } from "./types";
 
@@ -24,7 +10,6 @@ function normalize(value: string): string {
     .toLowerCase();
 }
 
-/** "45.000" -> 45000, "45" -> 45, "una" -> 1 */
 function parseQuantity(raw: string): number {
   const cleaned = normalize(raw).trim();
   if (cleaned === "una" || cleaned === "un" || cleaned === "uno") return 1;
@@ -36,10 +21,6 @@ interface AmountMatch {
   phrase: string;
 }
 
-/**
- * Busca el monto total. Reconoce "45 lucas", "una luca", "45 mil",
- * "$45.000" y "45000".
- */
 function findTotal(text: string): AmountMatch | null {
   const patterns: Array<{ re: RegExp; scale: number }> = [
     { re: /(\d[\d.,]*|una|un)\s*lucas?\b/i, scale: MIL },
@@ -65,10 +46,6 @@ interface AdjustmentMatch {
   phrase: string;
 }
 
-/**
- * Busca ajustes del tipo "Diego pone 5 lucas menos" o
- * "Camila paga 2 lucas mas".
- */
 function findAdjustments(text: string, members: Member[]): AdjustmentMatch[] {
   const re =
     /([\p{L}]+)\s+(?:pone|paga|aporta|pagan|ponen)\s+(\d[\d.,]*|una|un)\s*(?:lucas?|mil|k|pesos)?\s*(menos|mas|más)/giu;
@@ -85,7 +62,7 @@ function findAdjustments(text: string, members: Member[]): AdjustmentMatch[] {
     const quantity = parseQuantity(rawQuantity);
     if (!Number.isFinite(quantity)) continue;
 
-    // "5 lucas" o "5" a secas se leen como miles, que es como se habla.
+    // "5 lucas" o "5" a secas se entienden como miles.
     const magnitude = quantity < 100 ? quantity * MIL : quantity;
     const sign = normalize(direction) === "menos" ? -1 : 1;
 
@@ -110,7 +87,6 @@ const VERBOS = [
   "gastamos",
 ];
 
-/** Saca la descripcion del gasto del texto, sin el verbo ni el monto. */
 function findDescription(text: string, totalPhrase: string | null): string {
   let head = text.trim();
 
@@ -134,7 +110,6 @@ function findDescription(text: string, totalPhrase: string | null): string {
   return description.charAt(0).toUpperCase() + description.slice(1);
 }
 
-/** Busca la frase que pide dividir el resto en partes iguales. */
 function findEqualSplitPhrase(text: string): string | null {
   const re = /(el resto )?(en |a )?partes iguales|mitad y mitad|entre todos/i;
   const match = re.exec(text);
@@ -145,10 +120,8 @@ function formatPesos(amount: number): string {
   return `$${new Intl.NumberFormat("es-CL").format(amount)}`;
 }
 
-/**
- * Convierte un texto libre en un borrador de gasto. No guarda nada: el
- * usuario revisa el borrador y recien ahi se llama a `createExpense`.
- */
+// Provisional: reemplaza a parseExpenseText mientras no exista el mcp-server.
+// Funciona por reglas, como el modo LLM_MODE=fallback.
 export function interpretExpenseText(
   text: string,
   members: Member[],

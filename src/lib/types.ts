@@ -1,9 +1,3 @@
-/**
- * Tipos de la interfaz. Replican el schema GraphQL del BFF
- * (CLAUDE.md, seccion 6.4) para que cambiar los datos simulados
- * por Apollo Client en la Fase 4 no obligue a tocar los componentes.
- */
-
 export type ExpenseSource = "MANUAL" | "ASSISTANT";
 
 export interface User {
@@ -69,7 +63,6 @@ export interface Interpretation {
   meaning: string;
 }
 
-/** Resultado de `parseExpenseText`: nada se guarda hasta que el usuario confirma. */
 export interface ExpenseDraft {
   description: string;
   amount: number;

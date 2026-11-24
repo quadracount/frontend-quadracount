@@ -1,13 +1,3 @@
-/**
- * Implementación del estado con datos en memoria, sembrados con los
- * ejemplos de CLAUDE.md (sección 1).
- *
- * Es un reemplazo temporal del BFF: mantiene gastos, pagos, miembros y
- * actividad, y recalcula los saldos y el plan para saldar con las reglas de
- * `src/lib/split.ts`. Cuando el BFF esté en pie, este archivo se cambia por
- * los hooks de Apollo Client y las pantallas siguen igual.
- */
-
 import { useCallback, useMemo, useState, type ReactNode } from "react";
 import {
   computeBalances,
@@ -43,11 +33,6 @@ import {
 
 const SESSION_KEY = "quadracount.session";
 
-/**
- * Hace las veces del JWT en `localStorage` (CLAUDE.md, sección 7). Aquí
- * guarda solo el id del usuario; con el backend real guardará el token que
- * firma el BFF.
- */
 function readSession(): string | null {
   try {
     return window.localStorage.getItem(SESSION_KEY);
@@ -73,6 +58,8 @@ function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
+// Datos en memoria mientras no exista el BFF. En la Fase 4 se cambia
+// por Apollo Client; las pantallas no cambian.
 export function AppProvider({ children }: { children: ReactNode }) {
   const [users, setUsers] = useState<User[]>(seedUsers);
   const [groups, setGroups] = useState<StoredGroup[]>(seedGroups);
@@ -86,7 +73,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [users, currentUserId],
   );
 
-  /** Fecha "de hoy" de la demo; con el backend real sería `new Date()`. */
   const now = DEMO_NOW;
 
   const appendActivity = useCallback(
@@ -105,14 +91,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [now],
   );
 
-  // ---------- Sesión ----------
-
   const login = useCallback<AppContextValue["login"]>(
     (email, password) => {
       const user = users.find(
         (candidate) => normalizeEmail(candidate.email) === normalizeEmail(email),
       );
-      // Mismo mensaje en ambos casos, para no revelar qué correos existen.
+      // Mismo mensaje en ambos casos para no revelar qué correos existen.
       if (!user || password !== DEMO_PASSWORD) {
         return { ok: false, message: "Correo o contraseña incorrectos" };
       }
@@ -156,13 +140,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     writeSession(null);
   }, []);
 
-  // ---------- Consultas ----------
-
-  /**
-   * Arma los `Group` del schema combinando lo que en producción viene de tres
-   * servicios: grupos y gastos de groups-service, saldos y plan de
-   * balances-service, y actividad de activity-service.
-   */
   const myGroups = useMemo<Group[]>(() => {
     if (!currentUser) return [];
 
@@ -208,7 +185,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [myGroups],
   );
 
-  /** Feed combinado de la pantalla de Inicio, con el nombre del grupo. */
   const myActivity = useCallback(
     (limit = 20): ActivityEntry[] =>
       myGroups
@@ -220,8 +196,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [myGroups],
   );
 
-  // ---------- Mutaciones ----------
-
   const createGroup = useCallback(
     (name: string): Group => {
       if (!currentUser) throw new Error("No hay sesión iniciada");
@@ -229,7 +203,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const stored: StoredGroup = {
         id: newId("g"),
         name: name.trim(),
-        // CreateGroup agrega al solicitante como primer miembro.
         members: [{ userId: currentUser.id, name: currentUser.name }],
         createdAt: new Date(now).toISOString(),
       };
@@ -277,11 +250,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [users, groups, appendActivity],
   );
 
-  /**
-   * Solo se puede quitar a alguien con saldo exactamente 0. Es la misma
-   * verificación que hace groups-service llamando a `GetMemberBalance` de
-   * balances-service por gRPC.
-   */
   const removeMember = useCallback(
     (groupId: string, userId: string): RemoveMemberResult => {
       const group = myGroups.find((candidate) => candidate.id === groupId);
@@ -370,7 +338,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const group = groups.find((candidate) => candidate.id === groupId);
       if (!group) return { ok: false, message: "El grupo no existe" };
 
-      // Solo se puede registrar un pago en el que participe quien inició sesión.
       if (currentUser && ![fromUserId, toUserId].includes(currentUser.id)) {
         return {
           ok: false,
