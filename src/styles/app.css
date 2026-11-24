@@ -1,5 +1,3 @@
-/* QuadraCount — estructura y pantallas. Las primitivas estan en index.css. */
-
 .qc-sr-only {
   position: absolute;
   width: 1px;
@@ -12,8 +10,6 @@
   border: 0;
 }
 
-/* ---------- Estructura ---------- */
-
 .qc-shell {
   display: grid;
   grid-template-columns: 248px minmax(0, 1fr);
@@ -24,8 +20,6 @@
   padding: 32px 40px 72px;
   max-width: 1180px;
 }
-
-/* ---------- Barra lateral ---------- */
 
 .qc-sidebar {
   display: flex;
@@ -149,8 +143,6 @@
   white-space: nowrap;
 }
 
-/* ---------- Encabezado de pagina ---------- */
-
 .qc-page-header {
   display: flex;
   align-items: flex-end;
@@ -182,8 +174,6 @@
   color: var(--qc-text);
 }
 
-/* ---------- Franja de cifras ---------- */
-
 .qc-stat-band {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -205,8 +195,6 @@
 .qc-stat__hint {
   margin-top: 2px;
 }
-
-/* ---------- Secciones ---------- */
 
 .qc-section {
   margin-bottom: 32px;
@@ -264,8 +252,6 @@
   white-space: nowrap;
 }
 
-/* ---------- Pestanas ---------- */
-
 .qc-tabs {
   display: inline-flex;
 }
@@ -316,8 +302,6 @@
   border-bottom-color: var(--qc-primary);
 }
 
-/* ---------- Detalle del grupo ---------- */
-
 .qc-group-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr);
@@ -348,8 +332,6 @@
   font-size: 12px;
   line-height: 1.4;
 }
-
-/* ---------- Balances ---------- */
 
 .qc-bars {
   display: flex;
@@ -431,8 +413,6 @@
   transform: translateX(25%);
 }
 
-/* ---------- Saldar cuentas ---------- */
-
 .qc-settle {
   list-style: none;
 }
@@ -461,8 +441,6 @@
   line-height: 1.4;
 }
 
-/* ---------- Actividad ---------- */
-
 .qc-activity {
   list-style: none;
   border-left: 1px solid var(--qc-border);
@@ -486,8 +464,6 @@
 .qc-activity__text {
   overflow-wrap: anywhere;
 }
-
-/* ---------- Nuevo gasto ---------- */
 
 .qc-compose {
   overflow: hidden;
@@ -540,8 +516,6 @@
   font-size: 14px;
 }
 
-/* ---------- Formulario ---------- */
-
 .qc-form {
   display: flex;
   flex-direction: column;
@@ -592,8 +566,6 @@
   font-size: 13px;
   flex-wrap: wrap;
 }
-
-/* ---------- Borrador ---------- */
 
 .qc-draft__status {
   display: flex;
@@ -683,8 +655,6 @@
   padding-bottom: 0;
 }
 
-/* ---------- Dialogos ---------- */
-
 .qc-dialog__lead {
   margin-bottom: 18px;
   font-size: 15px;
@@ -723,8 +693,6 @@
 .qc-member-add .qc-notice {
   margin-top: 12px;
 }
-
-/* ---------- Acceso ---------- */
 
 .qc-auth {
   display: flex;
@@ -787,8 +755,6 @@
   line-height: 1.6;
 }
 
-/* ---------- Pantallas angostas ---------- */
-
 @media (max-width: 1040px) {
   .qc-group-grid {
     grid-template-columns: minmax(0, 1fr);
@@ -800,7 +766,6 @@
 }
 
 @media (max-width: 860px) {
-  /* La barra lateral se apila arriba (CLAUDE.md, seccion 7). */
   .qc-shell {
     grid-template-columns: minmax(0, 1fr);
   }

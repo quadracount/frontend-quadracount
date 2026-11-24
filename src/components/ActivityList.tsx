@@ -1,11 +1,6 @@
 import { formatRelativeShort } from "../lib/dates";
 import type { ActivityEntry } from "../lib/types";
 
-/**
- * Resalta el sujeto al principio de la frase. El texto llega ya redactado
- * desde activity-service, así que solo se marca el prefijo si coincide con
- * el actor ("Sofía agregó…", "Tú agregaste…").
- */
 function withSubject(entry: ActivityEntry) {
   const prefixes = [entry.actorName, "Tú", "Le"];
   for (const prefix of prefixes) {

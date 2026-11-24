@@ -1,12 +1,3 @@
-/**
- * Fechas de la interfaz, en espanol y sin dependencias externas.
- *
- * Todo recibe un `now` explicito: con los datos simulados ese `now` es la
- * fecha fija de la demo (ver `src/data/seed.ts`), y con el backend real
- * sera `new Date()`. Asi las etiquetas relativas no cambian de significado
- * al cambiar la fuente de datos.
- */
-
 const MESES = [
   "ene",
   "feb",
@@ -40,25 +31,21 @@ const MESES_LARGOS = [
 const HORA = 60 * 60 * 1000;
 const DIA = 24 * HORA;
 
-/** "09 nov" */
 export function formatDayMonth(iso: string): string {
   const date = new Date(iso);
   const day = String(date.getDate()).padStart(2, "0");
   return `${day} ${MESES[date.getMonth()]}`;
 }
 
-/** "Noviembre" */
 export function formatMonthName(iso: string | Date): string {
   const date = typeof iso === "string" ? new Date(iso) : iso;
   return MESES_LARGOS[date.getMonth()];
 }
 
-/** "Hoy, 11 nov" o "11 nov" si no es hoy. */
 export function formatTodayLabel(now: Date): string {
   return `Hoy, ${formatDayMonth(now.toISOString())}`;
 }
 
-/** Etiqueta corta para el feed: "2 h", "ayer", "4 d", "1 sem". */
 export function formatRelativeShort(iso: string, now: Date): string {
   const diff = now.getTime() - new Date(iso).getTime();
   if (diff < HORA) return `${Math.max(1, Math.round(diff / 60000))} min`;
@@ -73,7 +60,6 @@ export function formatRelativeShort(iso: string, now: Date): string {
   return formatDayMonth(iso);
 }
 
-/** Etiqueta larga para la columna "Ultima actividad": "hace 2 horas". */
 export function formatRelativeLong(iso: string, now: Date): string {
   const diff = now.getTime() - new Date(iso).getTime();
   if (diff < HORA) {
@@ -94,7 +80,6 @@ export function formatRelativeLong(iso: string, now: Date): string {
   return formatDayMonth(iso);
 }
 
-/** True si la fecha cae en el mismo mes y anio que `now`. */
 export function isSameMonth(iso: string, now: Date): boolean {
   const date = new Date(iso);
   return (

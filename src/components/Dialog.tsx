@@ -1,9 +1,5 @@
 import { useEffect, useRef, type ReactNode } from "react";
 
-/**
- * Diálogo modal sencillo: cierra con Escape o al hacer clic fuera, y lleva el
- * foco al contenido al abrirse.
- */
 export function Dialog({
   title,
   children,

@@ -10,11 +10,6 @@ interface Blocked {
   net: number;
 }
 
-/**
- * Aviso al intentar quitar a alguien con saldo pendiente (CLAUDE.md,
- * sección 7, pantalla 4). Corresponde al error `FAILED_PRECONDITION` que
- * groups-service devuelve tras consultar el saldo a balances-service.
- */
 function BlockedRemovalDialog({
   blocked,
   currentUserName,
