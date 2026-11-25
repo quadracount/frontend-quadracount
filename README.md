@@ -22,7 +22,7 @@ Los datos de un grupo se piden en **dos consultas**: una con miembros, gastos y 
 
 El frontend no calcula saldos ni interpreta texto: eso lo hacen balances-service y el mcp-server. `src/lib/split.ts` solo reparte en partes iguales para el formulario (el BFF valida que las partes sumen el total).
 
-El texto libre llama a `parseExpenseText`; hasta la Fase 5 el BFF responde que todavía no está disponible.
+El texto libre llama a `parseExpenseText`, que responde el mcp-server a través del BFF. El borrador no se guarda: se guarda con `createExpense` y `source: ASSISTANT` cuando el usuario lo confirma.
 
 ## Variables de entorno
 
