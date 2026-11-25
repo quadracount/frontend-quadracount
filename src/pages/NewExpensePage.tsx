@@ -5,7 +5,7 @@ import { Amount } from "../components/Amount";
 import { Avatar } from "../components/Avatar";
 import { HighlightedText } from "../components/HighlightedText";
 import { useAuth } from "../auth/authContext";
-import { errorCode, errorMessage } from "../graphql/errors";
+import { errorMessage } from "../graphql/errors";
 import {
   BALANCE_QUERIES,
   CREATE_EXPENSE,
@@ -112,11 +112,7 @@ export function NewExpensePage() {
       });
       if (result.data) setDraft(result.data.parseExpenseText);
     } catch (err) {
-      setError(
-        errorCode(err) === "NOT_IMPLEMENTED"
-          ? "El asistente de texto libre todavía no está disponible. Usa la pestaña Formulario."
-          : errorMessage(err),
-      );
+      setError(errorMessage(err));
     }
   };
 
