@@ -1,7 +1,10 @@
 import { useState, type FormEvent, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useApp } from "../data/appContext";
-import { DEMO_PASSWORD } from "../data/seed";
+import { useAuth } from "../auth/authContext";
+import { errorMessage } from "../graphql/errors";
+
+/** Contraseña de los usuarios de ejemplo (seed de groups-service). */
+const DEMO_PASSWORD = "quadra123";
 
 function AuthShell({
   title,
@@ -25,17 +28,24 @@ function AuthShell({
 }
 
 export function LoginPage() {
-  const { login } = useApp();
+  const { login, notice } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
 
-  const submit = (event: FormEvent) => {
+  const submit = async (event: FormEvent) => {
     event.preventDefault();
-    const result = login(email, password);
-    if (result.ok) navigate("/");
-    else setError(result.message);
+    setSending(true);
+    try {
+      await login(email, password);
+      navigate("/");
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -43,6 +53,8 @@ export function LoginPage() {
       title="Iniciar sesión"
       lead="Entra para ver tus grupos y tus saldos."
     >
+      {notice && !error && <p className="qc-notice qc-notice--error">{notice}</p>}
+
       <form onSubmit={submit} className="qc-auth__form">
         <label className="qc-field">
           <span className="qc-field__label">Correo</span>
@@ -76,8 +88,12 @@ export function LoginPage() {
 
         {error && <p className="qc-notice qc-notice--error">{error}</p>}
 
-        <button type="submit" className="qc-btn qc-btn--primary qc-btn--block">
-          Entrar
+        <button
+          type="submit"
+          className="qc-btn qc-btn--primary qc-btn--block"
+          disabled={sending}
+        >
+          {sending ? "Entrando…" : "Entrar"}
         </button>
       </form>
 
@@ -94,18 +110,25 @@ export function LoginPage() {
 }
 
 export function RegisterPage() {
-  const { register } = useApp();
+  const { register } = useAuth();
   const navigate = useNavigate();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
 
-  const submit = (event: FormEvent) => {
+  const submit = async (event: FormEvent) => {
     event.preventDefault();
-    const result = register(name, email, password);
-    if (result.ok) navigate("/");
-    else setError(result.message);
+    setSending(true);
+    try {
+      await register(name, email, password);
+      navigate("/");
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -150,6 +173,7 @@ export function RegisterPage() {
             type="password"
             value={password}
             autoComplete="new-password"
+            minLength={8}
             required
             onChange={(event) => {
               setPassword(event.target.value);
@@ -160,8 +184,12 @@ export function RegisterPage() {
 
         {error && <p className="qc-notice qc-notice--error">{error}</p>}
 
-        <button type="submit" className="qc-btn qc-btn--primary qc-btn--block">
-          Crear cuenta
+        <button
+          type="submit"
+          className="qc-btn qc-btn--primary qc-btn--block"
+          disabled={sending}
+        >
+          {sending ? "Creando…" : "Crear cuenta"}
         </button>
       </form>
 

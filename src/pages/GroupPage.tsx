@@ -1,3 +1,4 @@
+import { useMutation, useQuery } from "@apollo/client/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ActivityList } from "../components/ActivityList";
@@ -6,7 +7,15 @@ import { Avatar, AvatarStack } from "../components/Avatar";
 import { BalanceBars } from "../components/BalanceBars";
 import { MembersDialog } from "../components/MembersDialog";
 import { StatBand, StatCard } from "../components/StatBand";
-import { useApp } from "../data/appContext";
+import { useAuth } from "../auth/authContext";
+import { errorCode, errorMessage } from "../graphql/errors";
+import {
+  BALANCE_QUERIES,
+  GROUP,
+  GROUP_BALANCES,
+  POLL_MS,
+  REGISTER_PAYMENT,
+} from "../graphql/operations";
 import { formatDayMonth, formatMonthName, isSameMonth } from "../lib/dates";
 import { balanceTone, formatAmount, formatSigned } from "../lib/money";
 import { describeUnevenShares } from "../lib/split";
@@ -17,14 +26,32 @@ type ExpenseFilter = "ALL" | "MINE";
 export function GroupPage() {
   const { groupId = "" } = useParams();
   const navigate = useNavigate();
-  const { getGroup, currentUser, now, registerPayment } = useApp();
+  const { currentUser } = useAuth();
+  const now = new Date();
 
   const [filter, setFilter] = useState<ExpenseFilter>("ALL");
   const [showMembers, setShowMembers] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [paying, setPaying] = useState<string | null>(null);
   const balancesRef = useRef<HTMLElement>(null);
 
-  const group = getGroup(groupId);
+  // Miembros, gastos y actividad (groups-service + activity-service)
+  const groupQuery = useQuery(GROUP, {
+    variables: { id: groupId },
+    pollInterval: POLL_MS,
+  });
+  // Saldos y plan para saldar (balances-service), aparte: si balances-service
+  // está caído, el resto de la pantalla sigue funcionando.
+  const balancesQuery = useQuery(GROUP_BALANCES, {
+    variables: { id: groupId },
+    pollInterval: POLL_MS,
+  });
+  const [registerPayment] = useMutation(REGISTER_PAYMENT, {
+    refetchQueries: [...BALANCE_QUERIES, "Group"],
+  });
+
+  const group = groupQuery.data?.group ?? null;
+  const balances = balancesQuery.data?.group ?? null;
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -59,7 +86,23 @@ export function GroupPage() {
     }, 0);
 
     return { total, count: ofMonth.length, mine };
-  }, [group, currentUser, now]);
+    // now cambia en cada render; basta con recalcular cuando cambian los gastos
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [group, currentUser]);
+
+  if (!group && groupQuery.loading) {
+    return <p className="qc-muted qc-loading">Cargando el grupo…</p>;
+  }
+
+  const notFound = ["NOT_FOUND", "FORBIDDEN"].includes(errorCode(groupQuery.error) ?? "");
+  if (groupQuery.error && !group && !notFound) {
+    return (
+      <div className="qc-section">
+        <h1 className="qc-page-title">No se pudo cargar el grupo</h1>
+        <p className="qc-notice qc-notice--error">{errorMessage(groupQuery.error)}</p>
+      </div>
+    );
+  }
 
   if (!group || !currentUser) {
     return (
@@ -77,7 +120,9 @@ export function GroupPage() {
       ? group.expenses.filter((expense) => expense.paidBy.userId === currentUser.id)
       : group.expenses;
 
-  const peopleOwingMe = group.settlementPlan.filter(
+  const settlementPlan = balances?.settlementPlan ?? [];
+  const myBalance = balances?.myBalance ?? 0;
+  const peopleOwingMe = settlementPlan.filter(
     (transfer) => transfer.to.userId === currentUser.id,
   ).length;
 
@@ -93,15 +138,38 @@ export function GroupPage() {
     return `${from} → ${to}`;
   };
 
-  const pay = (transfer: Transfer) => {
-    const result = registerPayment(
-      group.id,
-      transfer.from.userId,
-      transfer.to.userId,
-      transfer.amount,
-    );
-    setError(result.ok ? null : result.message);
+  const transferKey = (transfer: Transfer) =>
+    `${transfer.from.userId}-${transfer.to.userId}-${transfer.amount}`;
+
+  // Solo se puede registrar un pago en el que participa quien inició sesión
+  const takesPart = (transfer: Transfer) =>
+    transfer.from.userId === currentUser.id || transfer.to.userId === currentUser.id;
+
+  const pay = async (transfer: Transfer) => {
+    setPaying(transferKey(transfer));
+    try {
+      await registerPayment({
+        variables: {
+          groupId: group.id,
+          fromUserId: transfer.from.userId,
+          toUserId: transfer.to.userId,
+          amount: transfer.amount,
+        },
+      });
+      setError(null);
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setPaying(null);
+    }
   };
+
+  const balancesUnavailable = (
+    <p className="qc-unavailable">
+      <strong>Saldos no disponibles por ahora.</strong> El servicio de saldos no
+      responde; los gastos que registres se aplicarán apenas vuelva.
+    </p>
+  );
 
   return (
     <>
@@ -131,14 +199,16 @@ export function GroupPage() {
       <StatBand>
         <StatCard
           label="Tu saldo"
-          value={formatSigned(group.myBalance)}
-          tone={balanceTone(group.myBalance)}
+          value={balances ? formatSigned(myBalance) : "—"}
+          tone={balances ? balanceTone(myBalance) : undefined}
           hint={
-            group.myBalance > 0
-              ? `Te deben ${peopleOwingMe} ${peopleOwingMe === 1 ? "persona" : "personas"}`
-              : group.myBalance < 0
-                ? "Tienes un pago pendiente"
-                : "Estás al día"
+            !balances
+              ? "Saldos no disponibles por ahora"
+              : myBalance > 0
+                ? `Te deben ${peopleOwingMe} ${peopleOwingMe === 1 ? "persona" : "personas"}`
+                : myBalance < 0
+                  ? "Tienes un pago pendiente"
+                  : "Estás al día"
           }
         />
         <StatCard
@@ -255,40 +325,55 @@ export function GroupPage() {
         <div className="qc-group-grid__side">
           <section className="qc-section" id="balances" ref={balancesRef} tabIndex={-1}>
             <h2 className="qc-section-title">Balances</h2>
-            <div className="qc-card qc-card--padded">
-              <BalanceBars balances={group.balances} currentUserId={currentUser.id} />
+            <div className={`qc-card ${balances ? "qc-card--padded" : ""}`}>
+              {balances ? (
+                <BalanceBars balances={balances.balances} currentUserId={currentUser.id} />
+              ) : balancesQuery.loading ? (
+                <p className="qc-muted qc-empty">Cargando saldos…</p>
+              ) : (
+                balancesUnavailable
+              )}
             </div>
           </section>
 
           <section className="qc-section">
             <h2 className="qc-section-title">Saldar cuentas</h2>
             <div className="qc-card">
-              {group.settlementPlan.length === 0 ? (
+              {!balances ? (
+                balancesQuery.loading ? (
+                  <p className="qc-muted qc-empty">Cargando…</p>
+                ) : (
+                  balancesUnavailable
+                )
+              ) : settlementPlan.length === 0 ? (
                 <p className="qc-muted qc-empty">
                   El grupo está en cero. No hay nada que saldar.
                 </p>
               ) : (
                 <>
                   <ul className="qc-settle">
-                    {group.settlementPlan.map((transfer) => (
-                      <li
-                        className="qc-settle__row"
-                        key={`${transfer.from.userId}-${transfer.to.userId}-${transfer.amount}`}
-                      >
+                    {settlementPlan.map((transfer) => (
+                      <li className="qc-settle__row" key={transferKey(transfer)}>
                         <span className="qc-settle__who">{transferLabel(transfer)}</span>
                         <Amount value={transfer.amount} className="qc-settle__amount" />
                         <button
                           type="button"
                           className="qc-btn qc-btn--sm"
                           onClick={() => pay(transfer)}
+                          disabled={!takesPart(transfer) || paying !== null}
+                          title={
+                            takesPart(transfer)
+                              ? undefined
+                              : "Solo puedes registrar pagos en los que participas"
+                          }
                         >
-                          Registrar pago
+                          {paying === transferKey(transfer) ? "Registrando…" : "Registrar pago"}
                         </button>
                       </li>
                     ))}
                   </ul>
                   <p className="qc-settle__footer qc-eyebrow">
-                    Con {group.settlementPlan.length === 1 ? "este pago" : `estos ${group.settlementPlan.length} pagos`}{" "}
+                    Con {settlementPlan.length === 1 ? "este pago" : `estos ${settlementPlan.length} pagos`}{" "}
                     el grupo queda en cero.
                   </p>
                 </>
@@ -301,6 +386,7 @@ export function GroupPage() {
       {showMembers && (
         <MembersDialog
           group={group}
+          balances={balances?.balances}
           onClose={() => setShowMembers(false)}
           onSeeBalances={() => {
             balancesRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });

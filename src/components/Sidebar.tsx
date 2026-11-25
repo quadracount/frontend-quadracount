@@ -1,5 +1,7 @@
+import { useQuery } from "@apollo/client/react";
 import { NavLink } from "react-router-dom";
-import { useApp } from "../data/appContext";
+import { useAuth } from "../auth/authContext";
+import { MY_BALANCES, MY_GROUPS, POLL_MS } from "../graphql/operations";
 import { balanceTone, formatSignedCompact } from "../lib/money";
 import { Avatar } from "./Avatar";
 
@@ -31,7 +33,14 @@ export function Sidebar({
   onCreateGroup: () => void;
   onNavigate?: () => void;
 }) {
-  const { myGroups, currentUser, logout } = useApp();
+  const { currentUser, logout } = useAuth();
+  const groups = useQuery(MY_GROUPS);
+  // Los saldos vienen de balances-service: si no responde, la lista se muestra igual
+  const balances = useQuery(MY_BALANCES, { pollInterval: POLL_MS });
+  const myGroups = groups.data?.myGroups ?? [];
+  const balanceOf = new Map(
+    (balances.data?.myGroups ?? []).map((group) => [group.id, group.myBalance]),
+  );
 
   return (
     <aside className="qc-sidebar">
@@ -64,9 +73,13 @@ export function Sidebar({
                 onClick={onNavigate}
               >
                 <span className="qc-sidebar__group-name">{group.name}</span>
-                <span className={`qc-mono qc-sidebar__group-balance ${balanceTone(group.myBalance)}`}>
-                  {formatSignedCompact(group.myBalance)}
-                </span>
+                {balanceOf.has(group.id) && (
+                  <span
+                    className={`qc-mono qc-sidebar__group-balance ${balanceTone(balanceOf.get(group.id) ?? 0)}`}
+                  >
+                    {formatSignedCompact(balanceOf.get(group.id) ?? 0)}
+                  </span>
+                )}
               </NavLink>
             </li>
           ))}

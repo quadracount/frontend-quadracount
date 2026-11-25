@@ -816,3 +816,24 @@
     max-width: none;
   }
 }
+
+/* Estados de carga y de servicio no disponible (datos desde el BFF) */
+.qc-loading {
+  padding: 32px 20px;
+  font-size: 14px;
+}
+
+.qc-unavailable {
+  padding: 18px 20px;
+  font-size: 14px;
+  color: var(--qc-text-muted);
+}
+
+.qc-unavailable strong {
+  color: var(--qc-text);
+  font-weight: 500;
+}
+
+.qc-compose__error {
+  margin: 0 20px 18px;
+}

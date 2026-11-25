@@ -1,19 +1,21 @@
+import { useQuery } from "@apollo/client/react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ActivityList } from "../components/ActivityList";
 import { AvatarStack } from "../components/Avatar";
 import { CreateGroupDialog } from "../components/CreateGroupDialog";
 import { StatBand, StatCard } from "../components/StatBand";
-import { useApp } from "../data/appContext";
+import { errorMessage } from "../graphql/errors";
+import { HOME, MY_BALANCES, POLL_MS } from "../graphql/operations";
 import { formatMonthName, formatRelativeLong } from "../lib/dates";
 import { balanceTone, formatAmount, formatSigned } from "../lib/money";
-import type { Group } from "../lib/types";
 
-function lastActivityAt(group: Group): string | null {
-  return group.activity[0]?.createdAt ?? null;
+interface GroupWithBalance {
+  name: string;
+  myBalance: number;
 }
 
-function biggestContributor(groups: Group[], sign: 1 | -1): Group | null {
+function biggestContributor(groups: GroupWithBalance[], sign: 1 | -1) {
   const candidates = groups.filter((group) =>
     sign === 1 ? group.myBalance > 0 : group.myBalance < 0,
   );
@@ -24,19 +26,39 @@ function biggestContributor(groups: Group[], sign: 1 | -1): Group | null {
 }
 
 export function HomePage() {
-  const { myGroups, myActivity, now } = useApp();
+  const now = new Date();
   const [creatingGroup, setCreatingGroup] = useState(false);
 
-  const total = myGroups.reduce((sum, group) => sum + group.myBalance, 0);
-  const owedToMe = myGroups
+  // Grupos y actividad (groups-service + activity-service)
+  const home = useQuery(HOME, { pollInterval: POLL_MS });
+  // Tu saldo en cada grupo (balances-service), en una consulta aparte
+  const balances = useQuery(MY_BALANCES, { pollInterval: POLL_MS });
+
+  const myGroups = home.data?.myGroups ?? [];
+  const balanceOf = new Map(
+    (balances.data?.myGroups ?? []).map((group) => [group.id, group.myBalance]),
+  );
+  const balancesAvailable = balances.data !== undefined;
+  const withBalance: GroupWithBalance[] = myGroups.map((group) => ({
+    name: group.name,
+    myBalance: balanceOf.get(group.id) ?? 0,
+  }));
+
+  const total = withBalance.reduce((sum, group) => sum + group.myBalance, 0);
+  const owedToMe = withBalance
     .filter((group) => group.myBalance > 0)
     .reduce((sum, group) => sum + group.myBalance, 0);
-  const owedByMe = myGroups
+  const owedByMe = withBalance
     .filter((group) => group.myBalance < 0)
     .reduce((sum, group) => sum - group.myBalance, 0);
 
-  const topCredit = biggestContributor(myGroups, 1);
-  const topDebt = biggestContributor(myGroups, -1);
+  const topCredit = biggestContributor(withBalance, 1);
+  const topDebt = biggestContributor(withBalance, -1);
+  const unavailable = "Saldos no disponibles por ahora";
+
+  if (!home.data && home.loading) {
+    return <p className="qc-muted qc-loading">Cargando tus grupos…</p>;
+  }
 
   return (
     <>
@@ -54,26 +76,42 @@ export function HomePage() {
         </button>
       </header>
 
+      {home.error && !home.data && (
+        <p className="qc-notice qc-notice--error qc-section">
+          {errorMessage(home.error)}
+        </p>
+      )}
+
       <StatBand>
         <StatCard
           label="Saldo total"
-          value={formatSigned(total)}
-          tone={balanceTone(total)}
+          value={balancesAvailable ? formatSigned(total) : "—"}
+          tone={balancesAvailable ? balanceTone(total) : undefined}
           hint={
-            myGroups.length === 1
-              ? "En tu único grupo"
-              : `Sumando tus ${myGroups.length} grupos`
+            !balancesAvailable
+              ? unavailable
+              : myGroups.length === 1
+                ? "En tu único grupo"
+                : `Sumando tus ${myGroups.length} grupos`
           }
         />
         <StatCard
           label="Te deben"
-          value={formatAmount(owedToMe)}
-          hint={topCredit ? `En ${topCredit.name}` : "Nadie te debe"}
+          value={balancesAvailable ? formatAmount(owedToMe) : "—"}
+          hint={
+            !balancesAvailable
+              ? unavailable
+              : topCredit
+                ? `En ${topCredit.name}`
+                : "Nadie te debe"
+          }
         />
         <StatCard
           label="Debes"
-          value={formatAmount(owedByMe)}
-          hint={topDebt ? `En ${topDebt.name}` : "No debes nada"}
+          value={balancesAvailable ? formatAmount(owedByMe) : "—"}
+          hint={
+            !balancesAvailable ? unavailable : topDebt ? `En ${topDebt.name}` : "No debes nada"
+          }
         />
       </StatBand>
 
@@ -100,7 +138,8 @@ export function HomePage() {
               </thead>
               <tbody>
                 {myGroups.map((group) => {
-                  const last = lastActivityAt(group);
+                  const last = group.activity[0]?.createdAt ?? null;
+                  const balance = balanceOf.get(group.id);
                   return (
                     <tr key={group.id}>
                       <td>
@@ -114,8 +153,14 @@ export function HomePage() {
                       <td className="qc-muted">
                         {last ? formatRelativeLong(last, now) : "sin actividad"}
                       </td>
-                      <td className={`qc-num qc-mono ${balanceTone(group.myBalance)}`}>
-                        {group.myBalance === 0 ? "al día" : formatSigned(group.myBalance)}
+                      <td
+                        className={`qc-num qc-mono ${balance !== undefined ? balanceTone(balance) : "qc-muted"}`}
+                      >
+                        {balance === undefined
+                          ? "—"
+                          : balance === 0
+                            ? "al día"
+                            : formatSigned(balance)}
                       </td>
                       <td className="qc-num">
                         <Link
@@ -137,7 +182,7 @@ export function HomePage() {
 
       <section className="qc-section">
         <h2 className="qc-section-title">Actividad en tus grupos</h2>
-        <ActivityList entries={myActivity(8)} now={now} showGroup />
+        <ActivityList entries={home.data?.myActivity ?? []} now={now} showGroup />
       </section>
 
       {creatingGroup && <CreateGroupDialog onClose={() => setCreatingGroup(false)} />}

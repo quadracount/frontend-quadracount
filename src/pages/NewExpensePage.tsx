@@ -1,13 +1,27 @@
+import { useMutation, useQuery } from "@apollo/client/react";
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Amount } from "../components/Amount";
 import { Avatar } from "../components/Avatar";
 import { HighlightedText } from "../components/HighlightedText";
-import { useApp } from "../data/appContext";
+import { useAuth } from "../auth/authContext";
+import { errorCode, errorMessage } from "../graphql/errors";
+import {
+  BALANCE_QUERIES,
+  CREATE_EXPENSE,
+  GROUP,
+  PARSE_EXPENSE_TEXT,
+} from "../graphql/operations";
 import { formatTodayLabel } from "../lib/dates";
 import { formatAmount, MINUS } from "../lib/money";
 import { splitEqually, sumShares } from "../lib/split";
-import type { ExpenseDraft, ExpenseSource, Member, Share } from "../lib/types";
+import type {
+  CreateExpenseInput,
+  ExpenseDraft,
+  ExpenseSource,
+  Member,
+  Share,
+} from "../lib/types";
 
 type Tab = "TEXT" | "FORM";
 type SplitMode = "EQUAL" | "CUSTOM";
@@ -31,9 +45,17 @@ function referenceShare(shares: Share[]): number {
 export function NewExpensePage() {
   const { groupId = "" } = useParams();
   const navigate = useNavigate();
-  const { getGroup, currentUser, now, parseExpenseText, createExpense } = useApp();
+  const { currentUser } = useAuth();
+  const now = new Date();
 
-  const group = getGroup(groupId);
+  const groupQuery = useQuery(GROUP, { variables: { id: groupId } });
+  const group = groupQuery.data?.group ?? null;
+
+  // El texto libre lo interpreta el mcp-server (a través del BFF): el frontend no calcula nada
+  const [parseExpenseText, { loading: interpreting }] = useMutation(PARSE_EXPENSE_TEXT);
+  const [createExpense, { loading: saving }] = useMutation(CREATE_EXPENSE, {
+    refetchQueries: [...BALANCE_QUERIES, "Group", "Home"],
+  });
 
   const [tab, setTab] = useState<Tab>("TEXT");
   const [text, setText] = useState("");
@@ -63,6 +85,10 @@ export function NewExpensePage() {
   const formTotal = sumShares(formShares);
   const formMatches = formTotal === amount && amount > 0;
 
+  if (!group && groupQuery.loading) {
+    return <p className="qc-muted qc-loading">Cargando el grupo…</p>;
+  }
+
   if (!group || !currentUser) {
     return (
       <div className="qc-section">
@@ -77,15 +103,36 @@ export function NewExpensePage() {
   const memberOf = (userId: string): Member =>
     group.members.find((member) => member.userId === userId) ?? group.members[0];
 
-  const interpret = () => {
-    if (text.trim().length === 0) return;
+  const interpret = async () => {
+    if (text.trim().length === 0 || interpreting) return;
     setError(null);
-    setDraft(parseExpenseText(group.id, text, textPayer));
+    try {
+      const result = await parseExpenseText({
+        variables: { groupId: group.id, text, paidBy: textPayer || currentUser.id },
+      });
+      if (result.data) setDraft(result.data.parseExpenseText);
+    } catch (err) {
+      setError(
+        errorCode(err) === "NOT_IMPLEMENTED"
+          ? "El asistente de texto libre todavía no está disponible. Usa la pestaña Formulario."
+          : errorMessage(err),
+      );
+    }
+  };
+
+  const save = async (input: CreateExpenseInput) => {
+    setError(null);
+    try {
+      await createExpense({ variables: { input } });
+      navigate(`/grupos/${group.id}`);
+    } catch (err) {
+      setError(errorMessage(err));
+    }
   };
 
   const saveDraft = () => {
     if (!draft) return;
-    const result = createExpense({
+    void save({
       groupId: group.id,
       description: draft.description,
       amount: draft.amount,
@@ -96,8 +143,6 @@ export function NewExpensePage() {
       })),
       source: "ASSISTANT",
     });
-    if (result.ok) navigate(`/grupos/${group.id}`);
-    else setError(result.message);
   };
 
   const adjustByHand = () => {
@@ -117,7 +162,7 @@ export function NewExpensePage() {
   };
 
   const saveForm = () => {
-    const result = createExpense({
+    void save({
       groupId: group.id,
       description,
       amount,
@@ -128,8 +173,6 @@ export function NewExpensePage() {
       })),
       source: origin,
     });
-    if (result.ok) navigate(`/grupos/${group.id}`);
-    else setError(result.message);
   };
 
   const payerOptions = group.members.map((member) => (
@@ -188,7 +231,7 @@ export function NewExpensePage() {
                   onKeyDown={(event) => {
                     if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
                       event.preventDefault();
-                      interpret();
+                      void interpret();
                     }
                   }}
                 />
@@ -212,12 +255,16 @@ export function NewExpensePage() {
               <button
                 type="button"
                 className="qc-btn qc-btn--primary"
-                onClick={interpret}
-                disabled={text.trim().length === 0}
+                onClick={() => void interpret()}
+                disabled={text.trim().length === 0 || interpreting}
               >
-                Interpretar <kbd className="qc-kbd">⌘↵</kbd>
+                {interpreting ? "Interpretando…" : "Interpretar"}{" "}
+                <kbd className="qc-kbd">⌘↵</kbd>
               </button>
             </div>
+            {error && !draft && (
+              <p className="qc-notice qc-notice--error qc-compose__error">{error}</p>
+            )}
           </>
         ) : (
           <div className="qc-compose__body qc-form">
@@ -335,9 +382,9 @@ export function NewExpensePage() {
                 type="button"
                 className="qc-btn qc-btn--primary"
                 onClick={saveForm}
-                disabled={!formMatches || description.trim().length === 0}
+                disabled={!formMatches || description.trim().length === 0 || saving}
               >
-                Guardar gasto
+                {saving ? "Guardando…" : "Guardar gasto"}
               </button>
               <Link to={`/grupos/${group.id}`} className="qc-btn qc-btn--ghost">
                 Cancelar
@@ -424,9 +471,9 @@ export function NewExpensePage() {
                 type="button"
                 className="qc-btn qc-btn--primary"
                 onClick={saveDraft}
-                disabled={!draft.sumMatches || draft.amount === 0}
+                disabled={!draft.sumMatches || draft.amount === 0 || saving}
               >
-                Guardar gasto
+                {saving ? "Guardando…" : "Guardar gasto"}
               </button>
               <button type="button" className="qc-btn" onClick={adjustByHand}>
                 Ajustar a mano
